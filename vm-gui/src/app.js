@@ -8,6 +8,9 @@ const { invoke } = window.__TAURI__;
 
 let state = { categories: {} };
 let current = null;
+// 编辑模式标记：null = 新增；非 null = 编辑目标
+let editingCat = null; // 类目名
+let editingVer = null; // 版本号
 
 const $ = (id) => document.getElementById(id);
 const status = (msg, kind) => {
@@ -93,11 +96,16 @@ function renderVersions(name) {
     useBtn.className = "primary sm";
     useBtn.textContent = "切换";
     useBtn.onclick = () => useVersion(name, v);
+    const editBtn = document.createElement("button");
+    editBtn.className = "ghost sm";
+    editBtn.textContent = "编辑";
+    editBtn.onclick = () => openEditVersion(name, v);
     const delBtn = document.createElement("button");
     delBtn.className = "danger sm";
     delBtn.textContent = "删除";
     delBtn.onclick = () => removeVersion(name, v);
     actions.appendChild(useBtn);
+    actions.appendChild(editBtn);
     actions.appendChild(delBtn);
 
     li.appendChild(left);
@@ -137,12 +145,50 @@ function closeModals() {
   show("verModal", false);
 }
 
-$("addCatBtn").onclick = () => { $("catNameInput").value = ""; $("catDescInput").value = ""; openModal("catModal"); };
+$("addCatBtn").onclick = () => {
+  editingCat = null;
+  $("catModalTitle").textContent = "新增类目";
+  $("catNameInput").value = ""; $("catNameInput").disabled = false;
+  $("catDescInput").value = "";
+  openModal("catModal");
+};
+$("editCatBtn").onclick = () => {
+  if (!current) return;
+  editingCat = current;
+  $("catModalTitle").textContent = "编辑类目";
+  $("catNameInput").value = current; $("catNameInput").disabled = true; // 类目名不可改
+  $("catDescInput").value = state.categories[current].description || "";
+  openModal("catModal");
+};
+$("delCatBtn").onclick = async () => {
+  if (!current) return;
+  if (!confirm(`确认删除类目 ${current} 及其全部版本记录？（不会删除真实安装目录）`)) return;
+  try {
+    await invoke("remove_category", { name: current });
+    status(`已删除类目 ${current}`);
+    current = null;
+    await refresh();
+  } catch (e) {
+    status("删除类目失败: " + e, "err");
+  }
+};
 $("addVerBtn").onclick = () => {
   if (!current) return;
-  $("verInput").value = ""; $("pathInput").value = ""; $("binInput").value = "";
+  editingVer = null;
+  $("verModalTitle").textContent = "添加版本";
+  $("verInput").value = ""; $("verInput").disabled = false;
+  $("pathInput").value = ""; $("binInput").value = "";
   openModal("verModal");
 };
+function openEditVersion(cat, ver) {
+  editingVer = ver;
+  const entry = state.categories[cat].versions[ver];
+  $("verModalTitle").textContent = "编辑版本";
+  $("verInput").value = ver; $("verInput").disabled = true; // 版本号不可改
+  $("pathInput").value = entry.path;
+  $("binInput").value = entry.bin || "";
+  openModal("verModal");
+}
 document.querySelectorAll("[data-close]").forEach((b) => (b.onclick = closeModals));
 
 $("catSave").onclick = async () => {
@@ -150,12 +196,17 @@ $("catSave").onclick = async () => {
   const desc = $("catDescInput").value.trim();
   if (!name) return status("类目名称不能为空", "err");
   try {
-    await invoke("add_category", { name, desc });
+    if (editingCat) {
+      await invoke("edit_category", { name: editingCat, desc });
+      status(`已更新类目 ${editingCat}`, "ok");
+    } else {
+      await invoke("add_category", { name, desc });
+      status(`已新增类目 ${name}`, "ok");
+    }
     closeModals();
-    status(`已新增类目 ${name}`, "ok");
     await refresh();
   } catch (e) {
-    status("新增类目失败: " + e, "err");
+    status((editingCat ? "编辑" : "新增") + "类目失败: " + e, "err");
   }
 };
 
@@ -165,12 +216,17 @@ $("verSave").onclick = async () => {
   const bin = $("binInput").value.trim() || null;
   if (!version || !path) return status("版本号与路径必填", "err");
   try {
-    await invoke("add_version", { category: current, version, path, bin });
+    if (editingVer) {
+      await invoke("edit_version", { category: current, version: editingVer, path, bin });
+      status(`已更新版本 ${editingVer}`, "ok");
+    } else {
+      await invoke("add_version", { category: current, version, path, bin });
+      status(`已添加版本 ${version}`, "ok");
+    }
     closeModals();
-    status(`已添加版本 ${version}`, "ok");
     await refresh();
   } catch (e) {
-    status("添加版本失败: " + e, "err");
+    status((editingVer ? "编辑" : "添加") + "版本失败: " + e, "err");
   }
 };
 

@@ -14,7 +14,7 @@ pub use error::{Result, VmError};
 pub use link::{create_link, remove_link};
 pub use model::{Category, Config, VersionEntry};
 pub use switch::{
-    add_category, add_version, cleanup_category_dir, current_version, init_category_dir,
-    link_active_bin, list_categories, list_versions, remove_category, remove_version,
-    resolve_bin_dir, use_version,
+    add_category, add_version, cleanup_category_dir, current_version, edit_category, edit_version,
+    init_category_dir, link_active_bin, list_categories, list_versions, remove_category,
+    remove_version, resolve_bin_dir, use_version,
 };

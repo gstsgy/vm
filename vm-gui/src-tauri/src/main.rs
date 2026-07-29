@@ -36,6 +36,28 @@ fn add_version(category: String, version: String, path: String, bin: Option<Stri
     with_cfg(|cfg| vm_core::add_version(cfg, &category, &version, &path, bin))
 }
 
+/// 编辑类目说明。
+#[tauri::command]
+fn edit_category(name: String, desc: String) -> CmdResult<()> {
+    with_cfg(|cfg| vm_core::edit_category(cfg, &name, &desc))
+}
+
+/// 编辑版本路径/bin；若是当前激活版本则重建链接。
+#[tauri::command]
+fn edit_version(category: String, version: String, path: String, bin: Option<String>) -> CmdResult<()> {
+    let mut cfg = vm_core::load().map_err(|e| e.to_string())?;
+    vm_core::edit_version(&mut cfg, &category, &version, &path, bin).map_err(|e| e.to_string())?;
+    let is_active = cfg
+        .categories
+        .get(&category)
+        .and_then(|c| c.active.as_deref())
+        == Some(version.as_str());
+    if is_active {
+        vm_core::link_active_bin(&cfg, &category).map_err(|e| e.to_string())?;
+    }
+    vm_core::save(&cfg).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn remove_category(name: String) -> CmdResult<()> {
     with_cfg(|cfg| vm_core::remove_category(cfg, &name))?;
@@ -81,6 +103,8 @@ fn main() {
             get_state,
             add_category,
             add_version,
+            edit_category,
+            edit_version,
             remove_category,
             remove_version,
             use_version,

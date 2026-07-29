@@ -21,6 +21,38 @@ pub fn add_category(cfg: &mut Config, name: &str, desc: &str) -> Result<()> {
     Ok(())
 }
 
+/// 编辑类目说明。
+pub fn edit_category(cfg: &mut Config, name: &str, desc: &str) -> Result<()> {
+    let cat = cfg
+        .categories
+        .get_mut(name)
+        .ok_or_else(|| VmError::CategoryNotFound(name.to_string()))?;
+    cat.description = desc.to_string();
+    Ok(())
+}
+
+/// 编辑版本的安装路径与 bin 目录。
+/// 若编辑的是当前激活版本，调用方需随后执行 `link_active_bin` 重建链接。
+pub fn edit_version(
+    cfg: &mut Config,
+    category: &str,
+    version: &str,
+    path: &str,
+    bin: Option<String>,
+) -> Result<()> {
+    let cat = cfg
+        .categories
+        .get_mut(category)
+        .ok_or_else(|| VmError::CategoryNotFound(category.to_string()))?;
+    let entry = cat
+        .versions
+        .get_mut(version)
+        .ok_or_else(|| VmError::VersionNotFound(version.to_string(), category.to_string()))?;
+    entry.path = path.to_string();
+    entry.bin = bin;
+    Ok(())
+}
+
 /// 删除类目及其全部版本记录（不会删除用户真实的安装目录）。
 pub fn remove_category(cfg: &mut Config, name: &str) -> Result<()> {
     cfg.categories

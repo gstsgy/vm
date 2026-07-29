@@ -28,6 +28,8 @@
         <div class="cat-title">
           <h2 id="catName"></h2>
           <span id="catDesc" class="muted"></span>
+          <button id="editCatBtn" class="ghost sm" title="编辑类目说明">编辑</button>
+          <button id="delCatBtn" class="danger sm" title="删除类目">删除</button>
         </div>
 
         <div class="versions">
@@ -47,10 +49,10 @@
 
   <footer id="status" class="statusbar">就绪</footer>
 
-  <!-- 新增类目弹窗 -->
+  <!-- 新增/编辑类目弹窗 -->
   <div id="catModal" class="modal hidden">
     <div class="modal-card">
-      <h3>新增类目</h3>
+      <h3 id="catModalTitle">新增类目</h3>
       <label>名称<input id="catNameInput" placeholder="如 nodejs / java" /></label>
       <label>说明<input id="catDescInput" placeholder="可选" /></label>
       <div class="modal-actions">
@@ -60,10 +62,10 @@
     </div>
   </div>
 
-  <!-- 添加版本弹窗 -->
+  <!-- 添加/编辑版本弹窗 -->
   <div id="verModal" class="modal hidden">
     <div class="modal-card">
-      <h3>添加版本</h3>
+      <h3 id="verModalTitle">添加版本</h3>
       <label>版本号<input id="verInput" placeholder="如 21 / 18.0.0" /></label>
       <label>安装路径<input id="pathInput" placeholder="已安装目录根路径" /></label>
       <label>bin 目录（可选）<input id="binInput" placeholder="默认自动探测 bin/ 或根目录" /></label>

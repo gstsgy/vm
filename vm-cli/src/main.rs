@@ -2,9 +2,9 @@ use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
 use vm_core::{
-    add_category, add_version, cleanup_category_dir, current_version, init_category_dir,
-    link_active_bin, list_categories, list_versions, load, remove_category, remove_version, save,
-    use_version,
+    add_category, add_version, cleanup_category_dir, current_version, edit_category, edit_version,
+    init_category_dir, link_active_bin, list_categories, list_versions, load, remove_category,
+    remove_version, save, use_version,
 };
 
 #[derive(Parser)]
@@ -39,6 +39,21 @@ enum Command {
         category: String,
         /// 类目说明
         #[arg(short = 'd', long, default_value = "")]
+        desc: String,
+    },
+    /// 编辑版本：vm edit <类目> <版本> <新路径> [--bin <目录>]
+    Edit {
+        category: String,
+        version: String,
+        path: String,
+        /// 显式指定 bin 目录（不传则清空，恢复自动探测）
+        #[arg(long)]
+        bin: Option<String>,
+    },
+    /// 编辑类目说明：vm editc <类目> -d "新说明"
+    Editc {
+        category: String,
+        #[arg(short = 'd', long)]
         desc: String,
     },
     /// 删除类目（不指定版本）或某个版本
@@ -151,6 +166,32 @@ fn run_cmd(cmd: Command) -> anyhow::Result<()> {
             );
             #[cfg(not(windows))]
             println!("已创建 {}，请执行 `vm init` 获取 PATH 配置", dir.display());
+        }
+        Command::Edit {
+            category,
+            version,
+            path,
+            bin,
+        } => {
+            let mut cfg = load()?;
+            edit_version(&mut cfg, &category, &version, &path, bin)?;
+            // 编辑的是激活版本时重建链接
+            if cfg
+                .categories
+                .get(&category)
+                .and_then(|c| c.active.as_deref())
+                == Some(version.as_str())
+            {
+                link_active_bin(&cfg, &category)?;
+            }
+            save(&cfg)?;
+            println!("updated version '{version}' in '{category}'");
+        }
+        Command::Editc { category, desc } => {
+            let mut cfg = load()?;
+            edit_category(&mut cfg, &category, &desc)?;
+            save(&cfg)?;
+            println!("updated category '{category}'");
         }
         Command::Remove { category, version } => {
             let mut cfg = load()?;
