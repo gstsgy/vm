@@ -16,12 +16,12 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -55,10 +55,13 @@ jobs:
         shell: bash
         run: |
           set -e
-          EXE="vm-gui/src-tauri/target/x86_64-pc-windows-msvc/release/vm-gui.exe"
-          SETUP=$(ls vm-gui/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe 2>/dev/null | head -1)
+          # 注意：vm-gui/src-tauri 是 workspace 成员，产物在根 target/ 下
+          REL="target/x86_64-pc-windows-msvc/release"
+          EXE="$REL/vm-gui.exe"
+          SETUP=$(ls "$REL"/bundle/nsis/*.exe 2>/dev/null | head -1 || true)
+          [ -f "$EXE" ] || { echo "::error::未找到 GUI 可执行文件: $EXE"; ls "$REL" || true; exit 1; }
           for f in "$EXE" "$SETUP"; do
-            if [ -f "$f" ]; then
+            if [ -n "$f" ] && [ -f "$f" ]; then
               sz=$(stat -c%s "$f")
               echo "$(basename "$f"): $((sz/1024)) KB"
               if [ "$sz" -gt 10485760 ]; then
@@ -77,7 +80,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: vm-gui-portable
-          path: vm-gui/src-tauri/target/x86_64-pc-windows-msvc/release/vm-gui.exe
+          path: target/x86_64-pc-windows-msvc/release/vm-gui.exe
 
       # 打 tag 时自动创建 Release 并上传产物
       - name: Release
@@ -85,8 +88,8 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            vm-gui/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
-            vm-gui/src-tauri/target/x86_64-pc-windows-msvc/release/vm-gui.exe
+            target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+            target/x86_64-pc-windows-msvc/release/vm-gui.exe
             target/x86_64-pc-windows-msvc/release/vm.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
