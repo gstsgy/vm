@@ -3467,6 +3467,8 @@ dependencies = [
  "serde",
  "thiserror",
  "toml 0.8.23",
+ "windows-sys 0.59.0",
+ "winreg",
 ]
 
 [[package]]

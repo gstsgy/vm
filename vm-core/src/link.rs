@@ -2,23 +2,30 @@ use std::path::Path;
 
 use crate::Result;
 
-/// 删除一个已存在的链接（symlink / junction），不存在则忽略。
+/// 删除链接（symlink / junction）或空目录；路径不存在则直接跳过。
+/// 用 `symlink_metadata` 只看路径本身，不解析目标，避免误删链接指向的内容。
 pub fn remove_link(path: &Path) -> Result<()> {
-    if path.exists() || is_link(path) {
+    let meta = match std::fs::symlink_metadata(path) {
+        Ok(m) => m,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(e) => return Err(e.into()),
+    };
+    let ft = meta.file_type();
+    if ft.is_symlink() {
         #[cfg(windows)]
         {
-            // junction 是目录，symlink 文件可能是文件；统一尝试。
-            if path.is_dir() {
-                std::fs::remove_dir(path)?;
-            } else {
+            // Windows 目录符号链接需 remove_dir；文件符号链接用 remove_file
+            if std::fs::remove_dir(path).is_err() {
                 std::fs::remove_file(path)?;
             }
         }
         #[cfg(not(windows))]
-        {
-            // Unix 上 symlink 用 remove_file 删除（即使是目录链接）。
-            std::fs::remove_file(path)?;
-        }
+        std::fs::remove_file(path)?;
+    } else if ft.is_dir() {
+        // junction（删除的是链接本身，不影响目标）或空的真实目录
+        std::fs::remove_dir(path)?;
+    } else {
+        std::fs::remove_file(path)?;
     }
     Ok(())
 }
@@ -39,16 +46,4 @@ pub fn create_link(target: &Path, link: &Path) -> Result<()> {
         std::os::unix::fs::symlink(target, link)?;
     }
     Ok(())
-}
-
-#[cfg(not(windows))]
-fn is_link(path: &Path) -> bool {
-    std::fs::symlink_metadata(path)
-        .map(|m| m.file_type().is_symlink())
-        .unwrap_or(false)
-}
-
-#[cfg(windows)]
-fn is_link(_path: &Path) -> bool {
-    true
 }

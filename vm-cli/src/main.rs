@@ -2,8 +2,9 @@ use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
 use vm_core::{
-    add_category, add_version, current_version, link_active_bin, list_categories, list_versions,
-    load, remove_category, remove_version, save, use_version,
+    add_category, add_version, cleanup_category_dir, current_version, init_category_dir,
+    link_active_bin, list_categories, list_versions, load, remove_category, remove_version, save,
+    use_version,
 };
 
 #[derive(Parser)]
@@ -141,7 +142,15 @@ fn run_cmd(cmd: Command) -> anyhow::Result<()> {
             }
             add_category(&mut cfg, &category, &desc)?;
             save(&cfg)?;
+            let dir = init_category_dir(&category)?;
             println!("added category '{category}'");
+            #[cfg(windows)]
+            println!(
+                "已创建 {d}，并将 {d} 与 {d}\\bin 加入用户 PATH（新开终端生效）",
+                d = dir.display()
+            );
+            #[cfg(not(windows))]
+            println!("已创建 {}，请执行 `vm init` 获取 PATH 配置", dir.display());
         }
         Command::Remove { category, version } => {
             let mut cfg = load()?;
@@ -149,6 +158,7 @@ fn run_cmd(cmd: Command) -> anyhow::Result<()> {
                 None => {
                     remove_category(&mut cfg, &category)?;
                     save(&cfg)?;
+                    cleanup_category_dir(&category)?;
                     println!("removed category '{category}'");
                 }
                 Some(v) => {
@@ -161,16 +171,23 @@ fn run_cmd(cmd: Command) -> anyhow::Result<()> {
         Command::Env => {
             let dir = vm_core::config_dir();
             for c in list_categories(&load()?) {
-                println!("export PATH=\"{}:$PATH\"", dir.join(c).join("bin").display());
+                let base = dir.join(c);
+                println!(
+                    "export PATH=\"{}:{}:$PATH\"",
+                    base.join("bin").display(),
+                    base.display()
+                );
             }
         }
         Command::Init => {
             let dir = vm_core::config_dir();
             let mut snippet = String::new();
             for c in list_categories(&load()?) {
+                let base = dir.join(c);
                 snippet.push_str(&format!(
-                    "export PATH=\"{}:$PATH\"\n",
-                    dir.join(c).join("bin").display()
+                    "export PATH=\"{}:{}:$PATH\"\n",
+                    base.join("bin").display(),
+                    base.display()
                 ));
             }
             println!("# 请将以下内容追加到你的 shell profile（如 ~/.zshrc）：\n{snippet}");

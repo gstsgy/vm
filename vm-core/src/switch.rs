@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use crate::{
-    link, Category, Config, Result, VmError, VersionEntry, config_dir,
+    env, link, Category, Config, Result, VmError, VersionEntry, config_dir,
 };
 
 /// 新增类目（已存在则报错）。
@@ -185,7 +185,38 @@ mod tests {
     }
 }
 
-/// 重建 `~/.vm/<category>/bin` 链接，指向当前激活版本的 bin 目录。
+/// 初始化类目的磁盘环境：创建 `~/.vm/<类目>` 目录，
+/// 并把 `~/.vm/<类目>` 与 `~/.vm/<类目>/bin` 两条都加入用户 PATH。
+/// 这样无论可执行文件在版本根目录还是 bin/ 子目录，切换后都能命中。
+/// 新增类目后调用；重复调用安全（幂等）。
+pub fn init_category_dir(name: &str) -> Result<PathBuf> {
+    let dir = config_dir().join(name);
+    if std::fs::symlink_metadata(&dir).is_err() {
+        std::fs::create_dir_all(&dir)?;
+    }
+    env::add_to_user_path(&dir)?;
+    env::add_to_user_path(&dir.join("bin"))?;
+    Ok(dir)
+}
+
+/// 清理类目的磁盘环境：删除 `~/.vm/<类目>` 链接/目录，并从用户 PATH 移除两条记录。
+/// 删除类目后调用；不会碰用户真实的安装目录（junction 只删链接本身）。
+pub fn cleanup_category_dir(name: &str) -> Result<()> {
+    let dir = config_dir().join(name);
+    if link::remove_link(&dir).is_err() {
+        // 兼容旧布局：真实目录里残留 `bin` 链接导致目录非空
+        let _ = link::remove_link(&dir.join("bin"));
+        link::remove_link(&dir)?;
+    }
+    env::remove_from_user_path(&dir.join("bin"))?;
+    env::remove_from_user_path(&dir)?;
+    Ok(())
+}
+
+/// 重建 `~/.vm/<category>` 链接（junction/symlink），指向当前激活版本的**安装根目录**。
+/// PATH 中已有 `~/.vm/<类目>` 与 `~/.vm/<类目>/bin` 两条，
+/// 因此可执行文件在根目录或 bin/ 子目录都可直接使用；
+/// `~/.vm/<类目>` 还可以直接用作 JAVA_HOME 之类的 HOME 变量。
 /// 这是 `vm use` 切换版本后让 PATH 生效的核心步骤。
 pub fn link_active_bin(cfg: &Config, category: &str) -> Result<()> {
     let cat = cfg
@@ -200,9 +231,20 @@ pub fn link_active_bin(cfg: &Config, category: &str) -> Result<()> {
         .versions
         .get(active)
         .ok_or_else(|| VmError::VersionNotFound(active.clone(), category.to_string()))?;
-    let bin_dir = resolve_bin_dir(entry)?;
-    let link = config_dir().join(category).join("bin");
-    link::remove_link(&link)?;
-    link::create_link(&bin_dir, &link)?;
+    // 链接目标 = 安装根目录（bin/ 通过 PATH 第二条记录覆盖）
+    let target = PathBuf::from(&entry.path);
+    if !target.exists() {
+        return Err(VmError::BinDirMissing(target.display().to_string()));
+    }
+    let link = config_dir().join(category);
+    if link::remove_link(&link).is_err() {
+        // 兼容旧布局（~/.vm/<类目>/bin 链接残留导致真实目录非空）：先删内层链接再删目录
+        let _ = link::remove_link(&link.join("bin"));
+        link::remove_link(&link)?;
+    }
+    link::create_link(&target, &link)?;
+    // 确保 PATH 中有两条记录（老版本创建的类目没加过）
+    env::add_to_user_path(&link)?;
+    env::add_to_user_path(&link.join("bin"))?;
     Ok(())
 }

@@ -23,7 +23,10 @@ fn get_state() -> CmdResult<Config> {
 
 #[tauri::command]
 fn add_category(name: String, desc: String) -> CmdResult<()> {
-    with_cfg(|cfg| vm_core::add_category(cfg, &name, &desc))
+    with_cfg(|cfg| vm_core::add_category(cfg, &name, &desc))?;
+    // 创建 ~/.vm/<类目> 目录并加入用户 PATH
+    vm_core::init_category_dir(&name).map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -33,7 +36,10 @@ fn add_version(category: String, version: String, path: String, bin: Option<Stri
 
 #[tauri::command]
 fn remove_category(name: String) -> CmdResult<()> {
-    with_cfg(|cfg| vm_core::remove_category(cfg, &name))
+    with_cfg(|cfg| vm_core::remove_category(cfg, &name))?;
+    // 清理 ~/.vm/<类目> 链接/目录并移出用户 PATH
+    vm_core::cleanup_category_dir(&name).map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -57,9 +63,11 @@ fn env_snippet() -> CmdResult<String> {
     let dir = vm_core::config_dir();
     let mut out = String::new();
     for c in vm_core::list_categories(&cfg) {
+        let base = dir.join(c);
         out.push_str(&format!(
-            "export PATH=\"{}:$PATH\"\n",
-            dir.join(c).join("bin").display()
+            "export PATH=\"{}:{}:$PATH\"\n",
+            base.join("bin").display(),
+            base.display()
         ));
     }
     Ok(out)

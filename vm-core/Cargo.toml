@@ -12,3 +12,5 @@ thiserror = "1"
 
 [target.'cfg(windows)'.dependencies]
 junction = "1"
+winreg = "0.52"
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
