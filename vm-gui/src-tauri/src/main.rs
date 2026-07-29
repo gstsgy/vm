@@ -1,5 +1,7 @@
 // vm-gui：Tauri v1 后端，复用 vm-core 的全部逻辑。
 // 所有命令返回 Result<T, String>，便于前端直接展示错误。
+// release 构建隐藏 Windows 控制台黑框；dev 构建保留控制台便于看日志。
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use vm_core::{self, Config};
 
