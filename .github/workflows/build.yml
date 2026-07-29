@@ -1,0 +1,92 @@
+name: Build Windows
+
+# 触发：推送到 main/master、打 v* 标签、手动触发
+on:
+  push:
+    branches: [main, master]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    name: Build (Windows x64)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      # CLI：交叉编译为 Windows 可执行文件
+      - name: Build CLI (windows)
+        run: cargo build --release --target x86_64-pc-windows-msvc -p vm-cli
+
+      # GUI：Tauri 构建（纯静态前端，无需前端打包步骤）
+      - name: Build GUI (Tauri)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: vm-gui
+          args: --target x86_64-pc-windows-msvc --bundles nsis
+
+      # 体积检查：GUI 安装包 + 便携 exe 必须 < 10MB
+      - name: Size check
+        shell: bash
+        run: |
+          set -e
+          EXE="vm-gui/src-tauri/target/x86_64-pc-windows-msvc/release/vm-gui.exe"
+          SETUP=$(ls vm-gui/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe 2>/dev/null | head -1)
+          for f in "$EXE" "$SETUP"; do
+            if [ -f "$f" ]; then
+              sz=$(stat -c%s "$f")
+              echo "$(basename "$f"): $((sz/1024)) KB"
+              if [ "$sz" -gt 10485760 ]; then
+                echo "::error::包体积超过 10MB 限制: $f ($((sz/1024)) KB)"; exit 1
+              fi
+            fi
+          done
+
+      - name: Upload CLI (windows)
+        uses: actions/upload-artifact@v4
+        with:
+          name: vm-cli-windows
+          path: target/x86_64-pc-windows-msvc/release/vm.exe
+
+      - name: Upload GUI portable exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: vm-gui-portable
+          path: vm-gui/src-tauri/target/x86_64-pc-windows-msvc/release/vm-gui.exe
+
+      # 打 tag 时自动创建 Release 并上传产物
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            vm-gui/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+            vm-gui/src-tauri/target/x86_64-pc-windows-msvc/release/vm-gui.exe
+            target/x86_64-pc-windows-msvc/release/vm.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

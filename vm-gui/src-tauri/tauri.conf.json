@@ -1,0 +1,38 @@
+{
+  "build": {
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "",
+    "devPath": "../src",
+    "distDir": "../src"
+  },
+  "package": {
+    "productName": "vm",
+    "version": "0.1.0"
+  },
+  "tauri": {
+    "windows": [
+      {
+        "title": "vm · 版本管理器",
+        "width": 880,
+        "height": 640,
+        "minWidth": 640,
+        "minHeight": 480,
+        "resizable": true
+      }
+    ],
+    "bundle": {
+      "active": true,
+      "targets": ["nsis"],
+      "identifier": "com.gstsgy.vm",
+      "icon": ["icons/icon.ico"],
+      "windows": {
+        "webviewInstallMode": {
+          "type": "downloadBootstrapper"
+        }
+      }
+    },
+    "allowlist": {
+      "all": false
+    }
+  }
+}

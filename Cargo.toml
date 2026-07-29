@@ -1,0 +1,16 @@
+[workspace]
+resolver = "2"
+members = ["vm-core", "vm-cli", "vm-gui/src-tauri"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+# 发布构建：极致压缩体积，确保 Windows 包 < 10MB
+[profile.release]
+opt-level = "z"      # 以大小为优先优化
+lto = true           # 链接期优化，减小体积
+codegen-units = 1
+panic = "abort"      # 移除 panic unwind 表，显著减小体积
+strip = true         # 去除符号表

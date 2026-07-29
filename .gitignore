@@ -1,0 +1,15 @@
+# Rust
+/target
+**/target
+Cargo.lock.bak
+
+# Tauri
+vm-gui/src-tauri/target
+
+# 本地配置（不提交用户真实配置）
+/.vm
+
+# 编辑器
+.idea/
+.vscode/
+*.swp

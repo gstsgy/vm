@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>vm · 版本管理器</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">vm</div>
+    <div class="brand-sub">版本管理器</div>
+    <button id="envBtn" class="ghost" title="复制 PATH 配置">PATH 配置</button>
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar">
+      <div class="side-head">
+        <span>类目</span>
+        <button id="addCatBtn" class="primary sm">+ 新增</button>
+      </div>
+      <ul id="catList" class="cat-list"></ul>
+    </aside>
+
+    <section class="content">
+      <div id="catPanel" class="cat-panel hidden">
+        <div class="cat-title">
+          <h2 id="catName"></h2>
+          <span id="catDesc" class="muted"></span>
+        </div>
+
+        <div class="versions">
+          <div class="side-head">
+            <span>版本</span>
+            <button id="addVerBtn" class="primary sm">+ 添加版本</button>
+          </div>
+          <ul id="verList" class="ver-list"></ul>
+        </div>
+      </div>
+
+      <div id="empty" class="empty">
+        <p>左侧选择一个类目，或点击「+ 新增」创建类目。</p>
+      </div>
+    </section>
+  </main>
+
+  <footer id="status" class="statusbar">就绪</footer>
+
+  <!-- 新增类目弹窗 -->
+  <div id="catModal" class="modal hidden">
+    <div class="modal-card">
+      <h3>新增类目</h3>
+      <label>名称<input id="catNameInput" placeholder="如 nodejs / java" /></label>
+      <label>说明<input id="catDescInput" placeholder="可选" /></label>
+      <div class="modal-actions">
+        <button class="ghost" data-close>取消</button>
+        <button class="primary" id="catSave">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 添加版本弹窗 -->
+  <div id="verModal" class="modal hidden">
+    <div class="modal-card">
+      <h3>添加版本</h3>
+      <label>版本号<input id="verInput" placeholder="如 21 / 18.0.0" /></label>
+      <label>安装路径<input id="pathInput" placeholder="已安装目录根路径" /></label>
+      <label>bin 目录（可选）<input id="binInput" placeholder="默认自动探测 bin/ 或根目录" /></label>
+      <div class="modal-actions">
+        <button class="ghost" data-close>取消</button>
+        <button class="primary" id="verSave">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
