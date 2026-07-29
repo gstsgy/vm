@@ -26,16 +26,26 @@
 
 ```bash
 cargo build --release -p vm-cli
-# 新增类目
-vm category add nodejs --desc "Node.js"
-# 添加版本（path 为安装根目录；Windows 上 Node 的 exe 在根目录可用 --bin 指定或自动探测）
-vm version add nodejs 20 /opt/node-v20
-vm version add nodejs 18 /opt/node-v18
-# 切换
-vm use nodejs 20
-# 查看
-vm current nodejs
-vm version list nodejs
+
+# 新增类目（-d 说明可选）
+vm addc nodejs -d "Node.js"
+
+# 添加版本（path 为安装根目录；需先创建类目；Windows 上 Node 的 exe 在根目录可用 --bin 指定或自动探测）
+vm add nodejs 20 /opt/node-v20
+vm add nodejs 18 /opt/node-v18
+
+# 切换（vm <类目> <版本>）
+vm nodejs 20
+
+# 查看当前版本（vm <类目>）
+vm nodejs
+
+# 列出版本（vm list [类目]）
+vm list nodejs
+
+# 删除版本 / 类目
+vm remove nodejs 18
+vm remove nodejs
 ```
 
 ## GUI
