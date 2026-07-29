@@ -6,7 +6,7 @@
     "distDir": "../src"
   },
   "package": {
-    "productName": "vm",
+    "productName": "vm-gui",
     "version": "0.1.0"
   },
   "tauri": {
