@@ -66,7 +66,7 @@ fn env_snippet() -> CmdResult<String> {
 }
 
 fn main() {
-    tauri::Builder::default()
+    let result = tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             get_state,
             add_category,
@@ -76,6 +76,25 @@ fn main() {
             use_version,
             env_snippet
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running vm-gui");
+        .run(tauri::generate_context!());
+
+    if let Err(e) = result {
+        let msg = format!("vm-gui 启动失败: {e}\n\n常见原因：系统未安装 WebView2 Runtime。\n请下载 Edge WebView2 Runtime 后再试。");
+        eprintln!("{msg}");
+        #[cfg(windows)]
+        unsafe {
+            use windows_sys::Win32::UI::WindowsAndMessaging::{
+                MessageBoxW, MB_ICONERROR, MB_OK,
+            };
+            let mut wide: Vec<u16> = msg.encode_utf16().collect();
+            wide.push(0);
+            MessageBoxW(
+                std::ptr::null_mut(),
+                wide.as_ptr(),
+                [0x76, 0x6D, 0x2D, 0x67, 0x75, 0x69, 0x00].as_ptr(), // "vm-gui\0"
+                MB_OK | MB_ICONERROR,
+            );
+        }
+        std::process::exit(1);
+    }
 }

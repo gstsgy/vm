@@ -1,4 +1,9 @@
 // vm-gui 前端：纯原生 JS，通过 Tauri 全局 API 调用后端命令（withGlobalTauri）。
+if (!window.__TAURI__) {
+  document.body.innerHTML =
+    '<div style="padding:24px;font-family:sans-serif;color:#c00">初始化失败：Tauri API 未注入（withGlobalTauri 未启用）</div>';
+  throw new Error("__TAURI__ missing");
+}
 const { invoke } = window.__TAURI__;
 
 let state = { categories: {} };
