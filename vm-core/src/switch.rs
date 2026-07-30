@@ -31,6 +31,14 @@ pub fn edit_category(cfg: &mut Config, name: &str, desc: &str) -> Result<()> {
     Ok(())
 }
 
+/// 将 bin 目录参数归一化：空串或纯空白视为「自动探测」（None）。
+fn normalize_bin(bin: Option<String>) -> Option<String> {
+    match bin {
+        Some(s) if !s.trim().is_empty() => Some(s),
+        _ => None,
+    }
+}
+
 /// 编辑版本的安装路径与 bin 目录。
 /// 若编辑的是当前激活版本，调用方需随后执行 `link_active_bin` 重建链接。
 pub fn edit_version(
@@ -49,7 +57,7 @@ pub fn edit_version(
         .get_mut(version)
         .ok_or_else(|| VmError::VersionNotFound(version.to_string(), category.to_string()))?;
     entry.path = path.to_string();
-    entry.bin = bin;
+    entry.bin = normalize_bin(bin);
     Ok(())
 }
 
@@ -83,7 +91,7 @@ pub fn add_version(
         version.to_string(),
         VersionEntry {
             path: path.to_string(),
-            bin,
+            bin: normalize_bin(bin),
         },
     );
     Ok(())
@@ -149,8 +157,8 @@ pub fn list_versions(cfg: &Config, category: &str) -> Result<Vec<String>> {
 pub fn resolve_bin_dir(entry: &VersionEntry) -> Result<PathBuf> {
     let root = PathBuf::from(&entry.path);
     let candidate = match &entry.bin {
-        Some(bin) => PathBuf::from(bin),
-        None => {
+        Some(bin) if !bin.trim().is_empty() => PathBuf::from(bin),
+        _ => {
             let with_bin = root.join("bin");
             if with_bin.is_dir() {
                 with_bin
@@ -214,6 +222,36 @@ mod tests {
             bin: Some(tmp.to_str().unwrap().to_string()),
         };
         assert_eq!(resolve_bin_dir(&explicit).unwrap(), tmp);
+    }
+
+    #[test]
+    fn bin_none_normalization() {
+        let mut cfg = Config::default();
+        add_category(&mut cfg, "nodejs", "Node").unwrap();
+        // 空串应被归一化为自动探测（None）
+        add_version(&mut cfg, "nodejs", "20", "/opt/node20", Some("".into())).unwrap();
+        assert_eq!(cfg.categories["nodejs"].versions["20"].bin, None);
+        // 纯空白同样归一化
+        edit_version(&mut cfg, "nodejs", "20", "/opt/node20", Some("   ".into())).unwrap();
+        assert_eq!(cfg.categories["nodejs"].versions["20"].bin, None);
+        // 非空串保留
+        edit_version(&mut cfg, "nodejs", "20", "/opt/node20", Some("/opt/node20/bin".into())).unwrap();
+        assert_eq!(
+            cfg.categories["nodejs"].versions["20"].bin,
+            Some("/opt/node20/bin".into())
+        );
+    }
+
+    #[test]
+    fn empty_bin_resolves_like_none() {
+        // resolve_bin_dir 对空串 bin 应回退到自动探测，而非当成 cwd
+        let tmp = std::env::temp_dir().join("vm_test_bin_empty");
+        let _ = std::fs::create_dir_all(tmp.join("bin"));
+        let entry = VersionEntry {
+            path: tmp.to_str().unwrap().to_string(),
+            bin: Some("".into()),
+        };
+        assert_eq!(resolve_bin_dir(&entry).unwrap(), tmp.join("bin"));
     }
 }
 
